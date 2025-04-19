@@ -1,11 +1,6 @@
 use hashbrown::hash_map;
 use core::hash::Hash;
 
-// use axalloc::GlobalAllocator;
-// use axhal::misc::random;
-// axalloc = { workspace = true }
-// axhal = { workspace = true }
-
 pub struct HashMap<K, V> {
     base: hash_map::HashMap<K, V>,
 }

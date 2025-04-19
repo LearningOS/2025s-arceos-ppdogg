@@ -9,7 +9,8 @@
 #[macro_export]
 macro_rules! print {
     ($($arg:tt)*) => {
-        $crate::io::__print_impl(format_args!($($arg)*));
+        $crate::io::__print_impl(format_args!("\u{1B}[{}m{}\u{1B}[m", 32, format_args!($($arg)*)));
+        // $crate::io::__print_impl(format_args!($($arg)*));
     }
 }
 
