@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 
+use memory_addr::{VirtAddrRange, MemoryAddr, VirtAddr};
 use core::ffi::{c_void, c_char, c_int};
+
 use axhal::arch::TrapFrame;
 use axhal::trap::{register_trap_handler, SYSCALL};
 use axerrno::LinuxError;
@@ -138,9 +140,36 @@ fn sys_mmap(
     prot: i32,
     flags: i32,
     fd: i32,
-    _offset: isize,
+    offset: isize,
 ) -> isize {
-    unimplemented!("no sys_mmap!");
+    info!("syscall mmap: addr {:#x?} length {} prot {} flags {} fd {} offset {}", addr as usize, length, prot, flags, fd, offset);
+    
+    let mut buf = [0u8; 64];
+    let _ = api::get_file_like(fd).unwrap().read(&mut buf).unwrap();
+    info!("read file content: {:?}", buf);
+
+    let main_task = current();
+    let mut uspace = main_task
+        .task_ext()
+        .aspace
+        .lock();
+
+    let free_addr = uspace
+        .find_free_area(
+            uspace.base(),
+            length.align_up_4k(),
+            VirtAddrRange::new(uspace.base(), uspace.end()),
+        ).unwrap();
+    info!("find free virtaddr: {:#x?}", free_addr);
+
+    uspace
+        .map_alloc(free_addr, length.align_up_4k(), MappingFlags::from_bits_truncate(prot as usize) | MappingFlags::USER, true)
+        .unwrap();
+    uspace
+        .write(free_addr, &buf)
+        .unwrap();
+    
+    free_addr.as_usize() as isize
 }
 
 fn sys_openat(dfd: c_int, fname: *const c_char, flags: c_int, mode: api::ctypes::mode_t) -> isize {
