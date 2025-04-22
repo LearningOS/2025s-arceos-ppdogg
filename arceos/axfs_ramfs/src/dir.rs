@@ -1,6 +1,6 @@
 use alloc::collections::BTreeMap;
 use alloc::sync::{Arc, Weak};
-use alloc::{string::String, vec::Vec};
+use alloc::{string::{String, ToString}, vec::Vec};
 
 use axfs_vfs::{VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axfs_vfs::{VfsError, VfsResult};
@@ -66,6 +66,15 @@ impl DirNode {
         }
         children.remove(name);
         Ok(())
+    }
+
+    /// Return the root node of file system
+    fn get_root_node(&self) -> VfsResult<VfsNodeRef> {
+        let mut node:VfsNodeRef = self.this.upgrade().unwrap();
+        while let Some(pnode) = node.parent() {
+            node = pnode.clone();
+        }
+        Ok(node)
     }
 }
 
@@ -163,6 +172,23 @@ impl VfsNodeOps for DirNode {
         } else {
             self.remove_node(name)
         }
+    }
+
+    fn rename(&self, old: &str, new: &str) -> VfsResult {
+        let (old_name, _ ) = split_path(old);
+        let (_, new_name) = split_path(new);
+        let new_name = new_name.unwrap();
+        log::debug!("axfs ramfs rename {} to {}", old_name, new_name);
+
+        let node = self.this.upgrade().unwrap().lookup(old)?;
+
+        let mut new_children = self.children.write().clone();
+        new_children.remove(old_name);
+        new_children.insert(new_name.to_string(), node);
+
+        *self.children.write() = new_children;
+        
+        Ok(())
     }
 
     axfs_vfs::impl_vfs_dir_default! {}
