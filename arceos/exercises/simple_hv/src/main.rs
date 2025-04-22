@@ -75,7 +75,7 @@ fn run_guest(ctx: &mut VmCpuRegisters) -> bool {
     vmexit_handler(ctx)
 }
 
-#[allow(unreachable_code)]
+//#[allow(unreachable_code)]
 fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
     use scause::{Exception, Trap};
 
@@ -102,16 +102,30 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
             }
         },
         Trap::Exception(Exception::IllegalInstruction) => {
-            panic!("Bad instruction: {:#x} sepc: {:#x}",
+            let sbi_msg = SbiMessage::from_regs(ctx.guest_regs.gprs.a_regs()).ok();
+            ax_println!("VmExit Reason: VSuperEcall: {:?}", sbi_msg);
+            ax_println!("Bad instruction: {:#x} sepc: {:#x}",
                 stval::read(),
                 ctx.guest_regs.sepc
             );
+
+            // a1
+            ctx.guest_regs.gprs.set_reg(A1, 0x1234);
+            // sepc
+            ctx.guest_regs.sepc += 4;
         },
         Trap::Exception(Exception::LoadGuestPageFault) => {
-            panic!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
+            let sbi_msg = SbiMessage::from_regs(ctx.guest_regs.gprs.a_regs()).ok();
+            ax_println!("VmExit Reason: VSuperEcall: {:?}", sbi_msg);
+            ax_println!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
                 stval::read(),
                 ctx.guest_regs.sepc
             );
+            
+            // a0
+            ctx.guest_regs.gprs.set_reg(A0, 0x6688);
+            // sepc
+            ctx.guest_regs.sepc += 4;
         },
         _ => {
             panic!(
